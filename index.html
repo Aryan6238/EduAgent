@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Assessment Pipeline</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AI Assessment Pipeline</h1>
+            <p>Generator & Reviewer Agent Collaboration</p>
+        </header>
+
+        <section class="input-section card">
+            <h2>Start Pipeline</h2>
+            <div class="form-group">
+                <label for="grade">Grade Level</label>
+                <input type="number" id="grade" min="1" max="12" value="4">
+            </div>
+            <div class="form-group">
+                <label for="topic">Topic</label>
+                <input type="text" id="topic" placeholder="e.g., Types of angles" value="Types of angles">
+            </div>
+            <button id="run-pipeline">Run Pipeline</button>
+        </section>
+
+        <section id="pipeline-visualization" class="pipeline-visualization hidden">
+            <div class="step" id="step-1">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                    <h3>Generator Agent</h3>
+                    <span class="status-badge" id="step-1-status">Waiting...</span>
+                </div>
+                <div class="step-content" id="step-1-content"></div>
+            </div>
+
+            <div class="pipeline-arrow" id="arrow-1">↓</div>
+
+            <div class="step" id="step-2">
+                <div class="step-header">
+                    <span class="step-number">2</span>
+                    <h3>Reviewer Agent</h3>
+                    <span class="status-badge" id="step-2-status">Waiting...</span>
+                </div>
+                <div class="step-content" id="step-2-content"></div>
+            </div>
+
+            <div class="pipeline-arrow hidden" id="arrow-2">↓</div>
+
+            <div class="step hidden" id="step-3">
+                <div class="step-header">
+                    <span class="step-number">3</span>
+                    <h3>Refinement (Final Pass)</h3>
+                    <span class="status-badge" id="step-3-status">Waiting...</span>
+                </div>
+                <div class="step-content" id="step-3-content"></div>
+            </div>
+        </section>
+
+        <section id="final-output" class="final-output hidden card">
+            <h2>Final Content</h2>
+            <div id="final-content-display"></div>
+        </section>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

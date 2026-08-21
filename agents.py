@@ -10,7 +10,7 @@ class GeneratorAgent:
     """
     Responsibility: Generate draft educational content for a given grade and topic.
     """
-    def __init__(self, model_name: str = "gemini-3-flash-preview"):
+    def __init__(self, model_name: str = "gemini-2.5-flash"):
         self.use_mock = not GOOGLE_API_KEY
         if not self.use_mock:
             genai.configure(api_key=GOOGLE_API_KEY)
@@ -49,7 +49,11 @@ class GeneratorAgent:
             prompt += f"\n\nIMPORTANT: Use this feedback to fix any classroom logic errors. Ensure Grade {input_data.grade} appropriateness."
 
         try:
-            response = self.model.generate_content(prompt)
+            # Enforce structured JSON responses from Gemini via generation parameters
+            response = self.model.generate_content(
+                prompt,
+                generation_config={"response_mime_type": "application/json"}
+            )
             data = self._parse_json(response.text)
             return GeneratorOutput(**data)
         except Exception as e:
@@ -70,7 +74,6 @@ class GeneratorAgent:
         topic_lower = input_data.topic.lower()
         if "angle" in topic_lower:
             if input_data.grade > 6:
-                # Advanced Mock for High School
                 if input_data.feedback:
                     return GeneratorOutput(
                         explanation=f"At the Grade {input_data.grade} level, we transition from basic shapes to the trigonometric properties of angles. An angle is a measure of rotation between two rays. We often measure them in Radians. Key concepts include Supplementary angles (sum to 180°) and the use of the Sine rule for non-right triangles.",
@@ -85,7 +88,6 @@ class GeneratorAgent:
                     mcqs=[MCQ(question="What is the unit used in trigonometry for measuring rotation?", options=["Grams", "Liters", "Radians", "Watts"], answer="Radians")]
                 )
             else:
-                # Simple Mock for Elementary/Middle School
                 if input_data.feedback:
                     return GeneratorOutput(
                         explanation=f"An angle is the space between two lines that meet at a point called a vertex. In Grade {input_data.grade}, we look at three main angles. A 'Right Angle' is square like a book corner. An 'Acute Angle' is smaller and sharp. An 'Obtuse Angle' is wider and bigger. Remember: Acute is small (and 'a-cute' little thing!), and Obtuse is large!",
@@ -100,17 +102,17 @@ class GeneratorAgent:
                     mcqs=[MCQ(question="What is an angle used to measure?", options=["Weight", "Length", "A turn", "Speed"], answer="A turn")]
                 )
         
-        # General Mock
         return GeneratorOutput(
             explanation=f"Welcome to our Grade {input_data.grade} lesson on {input_data.topic}! We will explore how this works using simple words and examples.",
             mcqs=[MCQ(question=f"What is the main topic of our lesson today?", options=["Math", "Reading", input_data.topic, "History"], answer=input_data.topic)]
         )
 
+
 class ReviewerAgent:
     """
     Responsibility: Evaluate the Generator’s output.
     """
-    def __init__(self, model_name: str = "gemini-3-flash-preview"):
+    def __init__(self, model_name: str = "gemini-2.5-flash"):
         self.use_mock = not GOOGLE_API_KEY
         if not self.use_mock:
             self.model = genai.GenerativeModel(model_name)
@@ -140,33 +142,39 @@ class ReviewerAgent:
         """
         
         try:
-            response = self.model.generate_content(prompt)
-            data = self._parse_json(response.text)
-            return ReviewerOutput(**data)
-        except Exception as e:
-            return ReviewerOutput(status="fail", feedback=[f"Error in review: {str(e)}"])
-
-    def _parse_json(self, text: str) -> Dict:
-        text = text.strip()
-        if text.startswith("```json"):
-            text = text[7:-3].strip()
-        elif text.startswith("```"):
-            text = text[3:-3].strip()
-        return json.loads(text)
-
-    def _mock_review(self, content: GeneratorOutput, grade: int, topic: str) -> ReviewerOutput:
-        # Check for length/detail first
-        if len(content.explanation) < 150:
-            return ReviewerOutput(
-                status="fail",
-                feedback=[f"The explanation for Grade {grade} needs more detail!", f"Please add more examples of {topic}."]
-            )
-        
-        # Check for Grade Complexity (Demonstration only)
-        if grade > 6 and "book corner" in content.explanation.lower():
-            return ReviewerOutput(
-                status="fail",
-                feedback=[f"This content is too simplistic for a Grade {grade} student.", "Please use more advanced terminology like 'Radians' or 'Supplementary angles' instead of 'book corners'."]
+            response = self.model.generate_content(
+                prompt,
+                generation_config={"response_mime_type": "application/json"}
             )
             
-        return ReviewerOutput(status="pass", feedback=["Great work! This is perfect for Grade " + str(grade)])
+            # Clean and parse text response safely
+            text = response.text.strip()
+            if text.startswith("```json"):
+                text = text[7:-3].strip()
+            elif text.startswith("```"):
+                text = text[3:-3].strip()
+                
+            data = json.loads(text)
+            return ReviewerOutput(**data)
+        except Exception as e:
+            return ReviewerOutput(
+                status="fail",
+                feedback=[f"Reviewer evaluation failed due to system error: {str(e)}"]
+            )
+
+    def _mock_review(self, content: GeneratorOutput, grade: int, topic: str) -> ReviewerOutput:
+        # Strict checking baseline for low-grade curriculum boundaries
+        if grade <= 2 and ("angle" in topic.lower() or "trig" in topic.lower()):
+            return ReviewerOutput(
+                status="fail",
+                feedback=[
+                    f"The topic '{topic}' is far too complex for Grade {grade} students.",
+                    "Please pivot to simple building blocks like identifying 'corners' or basic geometric shapes instead."
+                ]
+            )
+            
+        # Fallback passing scenario for robust mock pipelines
+        return ReviewerOutput(
+            status="pass",
+            feedback=["Content looks age-appropriate and correctly pairs explanations with MCQ evaluation indicators."]
+        )

@@ -4,8 +4,7 @@ from typing import Dict, List
 import google.generativeai as genai
 from models import GeneratorInput, GeneratorOutput, ReviewerOutput, MCQ
 
-# 🚨 SEMGREP BUG #1: Hardcoded API Secret / High-entropy string
-# Expected Semgrep Rule: generic.detect-hardcoded-secret / python.lang.security.secrets
+#1
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "AIzaSyD-FakeGeminiKeyForTestingPurposes12345")
 
 class GeneratorAgent:
@@ -51,18 +50,13 @@ class GeneratorAgent:
             prompt += f"\n\nIMPORTANT: Use this feedback to fix any classroom logic errors. Ensure Grade {input_data.grade} appropriateness."
 
         try:
-            # Enforce structured JSON responses from Gemini via generation parameters
             response = self.model.generate_content(
                 prompt,
                 generation_config={"response_mime_type": "application/json"}
             )
-            # 🚨 AI REVIEWER BUG #1: AttributeError Scope Violation
-            # GeneratorAgent calls self._parse_json but it has been completely deleted from this class.
             data = self._parse_json(response.text)
             return GeneratorOutput(**data)
         except Exception as e:
-            # 🚨 AI REVIEWER BUG #2: Missing 'return' statement inside exception block
-            # This causes the method to fall through and implicitly return None on failure.
             GeneratorOutput(
                 explanation=f"Oh no! I had a little trouble with my lesson plan. (Error: {str(e)})",
                 mcqs=[]
@@ -160,8 +154,7 @@ class ReviewerAgent:
                 feedback=[f"Reviewer evaluation failed due to system error: {str(e)}"]
             )
 
-    # 🚨 SEMGREP BUG #2: Insecure Deserialization via eval()
-    # Expected Semgrep Rule: python.lang.security.audit.eval.eval / security.python.deserialization
+
     def debug_log_payload(self, raw_payload_string: str):
         """Debug helper to inspect incoming raw string objects securely."""
         return eval(raw_payload_string)

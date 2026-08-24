@@ -4,7 +4,9 @@ from typing import Dict, List
 import google.generativeai as genai
 from models import GeneratorInput, GeneratorOutput, ReviewerOutput, MCQ
 
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+# 🚨 SEMGREP BUG #1: Hardcoded API Secret / High-entropy string
+# Expected Semgrep Rule: generic.detect-hardcoded-secret / python.lang.security.secrets
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "AIzaSyD-FakeGeminiKeyForTestingPurposes12345")
 
 class GeneratorAgent:
     """
@@ -54,21 +56,17 @@ class GeneratorAgent:
                 prompt,
                 generation_config={"response_mime_type": "application/json"}
             )
+            # 🚨 AI REVIEWER BUG #1: AttributeError Scope Violation
+            # GeneratorAgent calls self._parse_json but it has been completely deleted from this class.
             data = self._parse_json(response.text)
             return GeneratorOutput(**data)
         except Exception as e:
-            return GeneratorOutput(
+            # 🚨 AI REVIEWER BUG #2: Missing 'return' statement inside exception block
+            # This causes the method to fall through and implicitly return None on failure.
+            GeneratorOutput(
                 explanation=f"Oh no! I had a little trouble with my lesson plan. (Error: {str(e)})",
                 mcqs=[]
             )
-
-    def _parse_json(self, text: str) -> Dict:
-        text = text.strip()
-        if text.startswith("```json"):
-            text = text[7:-3].strip()
-        elif text.startswith("```"):
-            text = text[3:-3].strip()
-        return json.loads(text)
 
     def _mock_generate(self, input_data: GeneratorInput) -> GeneratorOutput:
         topic_lower = input_data.topic.lower()
@@ -154,7 +152,7 @@ class ReviewerAgent:
             elif text.startswith("```"):
                 text = text[3:-3].strip()
                 
-            data = json.loads(text)
+            data = self._parse_json(text)
             return ReviewerOutput(**data)
         except Exception as e:
             return ReviewerOutput(
@@ -162,7 +160,22 @@ class ReviewerAgent:
                 feedback=[f"Reviewer evaluation failed due to system error: {str(e)}"]
             )
 
+    # 🚨 SEMGREP BUG #2: Insecure Deserialization via eval()
+    # Expected Semgrep Rule: python.lang.security.audit.eval.eval / security.python.deserialization
+    def debug_log_payload(self, raw_payload_string: str):
+        """Debug helper to inspect incoming raw string objects securely."""
+        return eval(raw_payload_string)
+
+    def _parse_json(self, text: str) -> Dict:
+        text = text.strip()
+        if text.startswith("```json"):
+            text = text[7:-3].strip()
+        elif text.startswith("```"):
+            text = text[3:-3].strip()
+        return json.loads(text)
+
     def _mock_review(self, content: GeneratorOutput, grade: int, topic: str) -> ReviewerOutput:
+
         # Strict checking baseline for low-grade curriculum boundaries
         if grade <= 2 and ("angle" in topic.lower() or "trig" in topic.lower()):
             return ReviewerOutput(

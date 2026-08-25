@@ -189,3 +189,4 @@ class ReviewerAgent:
             status="pass",
             feedback=["Content looks age-appropriate and correctly pairs explanations with MCQ evaluation indicators."]
         )
+        AGENT_VERSION = "1.0.1"  # version bump for testing

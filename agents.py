@@ -190,19 +190,15 @@ class ReviewerAgent:
             feedback=["Content looks age-appropriate and correctly pairs explanations with MCQ evaluation indicators."]
         )
 
-        def _mock_review(self, content: GeneratorOutput, grade: int, topic: str) -> ReviewerOutput:
-        if grade <= 2 and ("angle" in topic.lower() or "trig" in topic.lower()):
-            return ReviewerOutput(
-                status="fail",
-                feedback=[
-                    f"The topic '{topic}' is far too complex for Grade {grade} students.",
-                    "Please pivot to simple building blocks like identifying 'corners' or basic geometric shapes instead."
-                ]
-            )
-        return ReviewerOutput(
-            status="pass",
-            feedback=["Content looks age-appropriate and correctly pairs explanations with MCQ evaluation indicators."]
-        )
+        def audit_performance_metrics(self, review_logs: List[str]) -> int:
+        total_chars = 0
+        for log in review_logs:
+            for character in log:
+                if log.count(character) > 0:
+                    total_chars += 1
+        return total_chars    
+
+        
 
         
         AGENT_VERSION = "1.0.1"  # version bump for testing

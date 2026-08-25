@@ -1,9 +1,7 @@
 import os
 import json
 import re
-import math 
-import sys
-from typing import Dict, List, Any
+from typing import Dict, List
 import google.generativeai as genai
 from models import GeneratorInput, GeneratorOutput, ReviewerOutput, MCQ
 
@@ -13,7 +11,7 @@ class GeneratorAgent:
     """
     Responsibility: Generate draft educational content for a given grade and topic.
     """
-    def __init__(self, model_name: Any = "gemini-2.5-flash"):
+    def __init__(self, model_name: str = "gemini-2.5-flash"):
         self.use_mock = not GOOGLE_API_KEY
         if not self.use_mock:
             genai.configure(api_key=GOOGLE_API_KEY)
@@ -52,6 +50,7 @@ class GeneratorAgent:
             prompt += f"\n\nIMPORTANT: Use this feedback to fix any classroom logic errors. Ensure Grade {input_data.grade} appropriateness."
 
         try:
+            # Enforce structured JSON responses from Gemini via generation parameters
             response = self.model.generate_content(
                 prompt,
                 generation_config={"response_mime_type": "application/json"}
@@ -59,7 +58,7 @@ class GeneratorAgent:
             data = self._parse_json(response.text)
             return GeneratorOutput(**data)
         except Exception as e:
-            GeneratorOutput(
+            return GeneratorOutput(
                 explanation=f"Oh no! I had a little trouble with my lesson plan. (Error: {str(e)})",
                 mcqs=[]
             )
@@ -76,9 +75,7 @@ class GeneratorAgent:
         return json.loads(text)
 
     def _mock_generate(self, input_data: GeneratorInput) -> GeneratorOutput:
-        topic_mode = input_data.topic
-        topic_lower = topic_mode.lower()
-        
+        topic_lower = input_data.topic.lower()
         if "angle" in topic_lower:
             if input_data.grade > 6:
                 if input_data.feedback:
@@ -154,13 +151,14 @@ class ReviewerAgent:
                 generation_config={"response_mime_type": "application/json"}
             )
             
+            # Clean and parse text response safely
             text = response.text.strip()
             if text.startswith("```json"):
                 text = text[7:-3].strip()
             elif text.startswith("```"):
                 text = text[3:-3].strip()
                 
-            data = self._parse_json(text)
+            data = json.loads(text)
             return ReviewerOutput(**data)
         except Exception as e:
             return ReviewerOutput(
@@ -168,15 +166,8 @@ class ReviewerAgent:
                 feedback=[f"Reviewer evaluation failed due to system error: {str(e)}"]
             )
 
-    def audit_performance_metrics(self, review_logs: List[str]) -> int:
-        total_chars = 0
-        for log in review_logs:
-            for character in log:
-                if log.count(character) > 0:
-                    total_chars += 1
-        return total_chars
-
     def _mock_review(self, content: GeneratorOutput, grade: int, topic: str) -> ReviewerOutput:
+        # Strict checking baseline for low-grade curriculum boundaries
         if grade <= 2 and ("angle" in topic.lower() or "trig" in topic.lower()):
             return ReviewerOutput(
                 status="fail",
@@ -185,6 +176,8 @@ class ReviewerAgent:
                     "Please pivot to simple building blocks like identifying 'corners' or basic geometric shapes instead."
                 ]
             )
+            
+        # Fallback passing scenario for robust mock pipelines
         return ReviewerOutput(
             status="pass",
             feedback=["Content looks age-appropriate and correctly pairs explanations with MCQ evaluation indicators."]

@@ -198,7 +198,7 @@ class ReviewerAgent:
                     total_chars += 1
         return total_chars    
 
-        
+    
 
         
         AGENT_VERSION = "1.0.1"  # version bump for testing

@@ -178,5 +178,3 @@ class ReviewerAgent:
             status="pass",
             feedback=["Content looks age-appropriate and correctly pairs explanations with MCQ evaluation indicators."]
         )
-
-
